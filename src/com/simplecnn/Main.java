@@ -9,23 +9,31 @@ public class Main {
 
     public static void main(String[] args) {
         try {
+            // Convolutional neural network with random weights between -1 and 1 and sigmoid activation function
             final Network net = Network.randomSigmoid(new int[]{5, 7, 7, 3});
 
+            // Input data set (each entry is an input vector for the network)
             final float[][] input = {
                     {.3f, .7f, .2f, -.4f, -.9f},
                     {.5f, -.3f, -.1f, .6f, .8f},
                     {.1f, .1f, .1f, -.9f, .6f}
             };
 
+            // Desired output for the input data set
+            // (first entry is the desired output vector for the first input vector in input)
             final float[][] output = {
                     {1.f, 1.f, 0.f},
                     {0.f, 0.f, 1.f},
                     {1.f, 0.f, 0.f}
             };
 
+            // Train network for 1000 epochs
             for (int i = 0; i < 10000; ++i) {
+                // Use backpropagation as learning algorithm
                 net.backProp(.1f, input, output);
 
+                // Calculate error for this input-output pair
+                
                 float err = 0.f;
 
                 for (int j = 0; j < input.length; ++j) {
