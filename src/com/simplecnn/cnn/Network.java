@@ -96,7 +96,7 @@ public class Network implements Cloneable {
                 layers[j].gradientDescent(delta, learningRate / input.length);
                 if (j != 0) {
                     // Get next delta
-                    delta = layers[j].getDeltaPrev(delta, layers[j - 1].getOut(), layers[j - 1].getAct());
+                    delta = layers[j].getDeltaPrev(delta);
                 }
             }
         }

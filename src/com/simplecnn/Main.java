@@ -33,7 +33,7 @@ public class Main {
                 net.backProp(.1f, input, output);
 
                 // Calculate error for this input-output pair
-                
+
                 float err = 0.f;
 
                 for (int j = 0; j < input.length; ++j) {

@@ -124,17 +124,13 @@ public class Layer implements Cloneable {
      * Since the delta depends on the weights of this layer, we need to calculate delta
      * always in the next layer.
      *
-     * @param delta   delta for this layer
-     * @param outPrev output of the previous layer, before applying the activation function
-     * @param actPrev activation function of the previous layer
+     * @param delta delta for this layer
      * @return delta for the previous layer
      * @throws IncompatibleDimensionsException if delta.length != neurons || outPrev.length !=
      *                                         number of neurons in previous layer
      */
     public float[] getDeltaPrev(
-            float[] delta,
-            float[] outPrev,
-            Activation actPrev
+            float[] delta
     ) throws IncompatibleDimensionsException {
         /*
          * If we define deltaPrev as d(cost)/d(outPrev) (Where "cost" is the cost function) which can be seen as
@@ -152,8 +148,11 @@ public class Layer implements Cloneable {
          *
          * With this we get deltaPrev = weightsT * delta % derAct(outPrev) (where % is the hadamard product),
          * since "delta" is defined as d(cost)/d(out).
+         *
+         * This method only returns the part requiring information from this layer, to keep the data
+         * encapsulated.
          */
-        return Array.had(actPrev.applyD(outPrev), Array.mul(Array.trans(weights), delta));
+        return Array.mul(Array.trans(weights), delta);
     }
 
     /**
@@ -171,6 +170,21 @@ public class Layer implements Cloneable {
             float[] delta,
             float learningRate
     ) throws IncompatibleDimensionsException {
+        /*
+         * Calculate missing part for the gradient (delta),
+         * which couldn't be calculated in the next layer.
+         * (The complete Formula would be delta(i) = w(i+1) * delta(i+1) * activationDi(out),
+         * where "w(i+1)" and "delta(i+1)" are the weight matrix and delta of the next layer
+         * and "delta(i)", "activationDi" are the activation function and derivative of the
+         * activation function of this layer and "out" is the last output from this layer
+         * before applying the activation function).
+         *
+         * But "delta" is only w(i+1) * delta(i+1), the part that needs information from the
+         * next layer. The part needing information from this layer is calculated here, so
+         * we keep the data encapsulated.
+         */
+        delta = Array.had(act.applyD(out), delta);
+
         // Update the biases
 
         /*
