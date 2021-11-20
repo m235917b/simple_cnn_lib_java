@@ -1,5 +1,9 @@
 package com.simplecnn.cnn;
 
+import java.util.Arrays;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
 /**
  * Methods for array/vector operations
  *
@@ -35,14 +39,14 @@ public class Array {
     }
 
     /**
-     * Sum two vectors
+     * Add two vectors
      *
      * @param x first vector
      * @param y second vector
      * @return x + y
      * @throws IncompatibleDimensionsException if x.length != y.length
      */
-    public static float[] sum(float[] x, float[] y) throws IncompatibleDimensionsException {
+    public static float[] add(float[] x, float[] y) throws IncompatibleDimensionsException {
         if (x.length != y.length) {
             throw new IncompatibleDimensionsException();
         }
@@ -57,14 +61,14 @@ public class Array {
     }
 
     /**
-     * Calculate the sum of two matrices
+     * Add two matrices
      *
      * @param x first matrix
      * @param y second matrix
      * @return x + y
      * @throws IncompatibleDimensionsException if width of x != width of y || x.length != y.length
      */
-    public static float[][] sum(float[][] x, float[][] y) throws IncompatibleDimensionsException {
+    public static float[][] add(float[][] x, float[][] y) throws IncompatibleDimensionsException {
         if (x.length == 0 || x.length != y.length || x[0].length != y[0].length) {
             throw new IncompatibleDimensionsException();
         }
@@ -74,6 +78,52 @@ public class Array {
         for (int i = 0; i < x.length; ++i) {
             for (int j = 0; j < x[0].length; ++j) {
                 out[i][j] = x[i][j] + y[i][j];
+            }
+        }
+
+        return out;
+    }
+
+    /**
+     * Subtract two vectors
+     *
+     * @param x first vector
+     * @param y second vector
+     * @return x - y
+     * @throws IncompatibleDimensionsException if x.length != y.length
+     */
+    public static float[] sub(float[] x, float[] y) throws IncompatibleDimensionsException {
+        if (x.length != y.length) {
+            throw new IncompatibleDimensionsException();
+        }
+
+        final float[] out = new float[x.length];
+
+        for (int i = 0; i < x.length; ++i) {
+            out[i] = x[i] - y[i];
+        }
+
+        return out;
+    }
+
+    /**
+     * Subtract two matrices
+     *
+     * @param x first matrix
+     * @param y second matrix
+     * @return x - y
+     * @throws IncompatibleDimensionsException if width of x != width of y || x.length != y.length
+     */
+    public static float[][] sub(float[][] x, float[][] y) throws IncompatibleDimensionsException {
+        if (x.length == 0 || x.length != y.length || x[0].length != y[0].length) {
+            throw new IncompatibleDimensionsException();
+        }
+
+        final float[][] out = new float[x.length][x[0].length];
+
+        for (int i = 0; i < x.length; ++i) {
+            for (int j = 0; j < x[0].length; ++j) {
+                out[i][j] = x[i][j] - y[i][j];
             }
         }
 
@@ -202,6 +252,116 @@ public class Array {
     }
 
     /**
+     * Calculate the hadamard product of two matrices
+     *
+     * @param x first matrix
+     * @param y second matrix
+     * @return hadamard product of x and y
+     * @throws IncompatibleDimensionsException if x.length == 0 || x.length != y.length
+     */
+    public static double[][] had(float[][] x, float[][] y) throws IncompatibleDimensionsException {
+        if (x.length == 0 || x.length != y.length) {
+            throw new IncompatibleDimensionsException();
+        }
+
+        return (double[][]) IntStream
+                .range(0, x.length)
+                .mapToObj(i -> IntStream
+                        .range(0, x[i].length)
+                        .mapToDouble(j -> x[i][j] * y[i][j])
+                        .toArray())
+                .toArray();
+    }
+
+    /**
+     * Performs a component-wise division of one vector by another
+     *
+     * @param x dividend
+     * @param y divisor
+     * @return x / y (component-wise as a vector)
+     * @throws IncompatibleDimensionsException if x.length != y.length
+     */
+    public static float[] div(float[] x, float[] y) throws IncompatibleDimensionsException {
+        if (x.length != y.length) {
+            throw new IncompatibleDimensionsException();
+        }
+
+        final float[] out = new float[x.length];
+
+        for (int i = 0; i < x.length; ++i) {
+            out[i] = x[i] / y[i];
+        }
+
+        return out;
+    }
+
+    /**
+     * Component-wise natural logarithm of a matrix
+     *
+     * @param x matrix
+     * @return log(x) (component-wise as a matrix)
+     */
+    public static float[][] log(float[][] x) throws IncompatibleDimensionsException {
+        if (x.length == 0) {
+            throw new IncompatibleDimensionsException();
+        }
+
+        final float[][] out = new float[x.length][x[0].length];
+
+        for (int i = 0; i < x.length; ++i) {
+            for (int j = 0; j < x[i].length; ++j) {
+                out[i][j] = (float) Math.log(x[i][j]);
+            }
+        }
+
+        return out;
+    }
+
+    /**
+     * Component-wise exp of a matrix
+     *
+     * @param x matrix
+     * @return exp(x) (component-wise as a matrix)
+     */
+    public static float[][] exp(float[][] x) {
+        return (float[][]) Arrays.stream(x).map(row ->
+                IntStream.range(0, row.length).mapToDouble(i -> Math.exp(row[i])).toArray()
+        ).toArray();
+    }
+
+    /**
+     * Component-wise natural square of a matrix
+     *
+     * @param x matrix
+     * @return x² (component-wise as a matrix)
+     */
+    public static float[][] sqr(float[][] x) throws IncompatibleDimensionsException {
+        return had(x, x);
+    }
+
+    /**
+     * Sum over all entries of a matrix
+     *
+     * @param x matrix
+     * @return sum
+     */
+    public static float sum(float[][] x) {
+        if (x.length == 0) {
+            return 0.f;
+        }
+
+        float out = 0.f;
+
+        for (float[] vec : x) {
+            for (float val : vec) {
+                out += val;
+            }
+        }
+
+        return out;
+    }
+
+    /**
      * Create a deep copy of an array
      *
      * @param in array
@@ -232,6 +392,45 @@ public class Array {
         final float[] out = new float[in.length];
 
         System.arraycopy(in, 0, out, 0, in.length);
+
+        return out;
+    }
+
+    // Factory methods
+
+    /**
+     * Creates a vector where all entries have the same given value
+     *
+     * @param size  size of vector (number of entries)
+     * @param value value to be filled in each entry
+     * @return vector
+     */
+    public static float[] vector(int size, float value) {
+        final float[] out = new float[size];
+
+        for (int i = 0; i < size; ++i) {
+            out[i] = value;
+        }
+
+        return out;
+    }
+
+    /**
+     * Creates a matrix where all entries have the same given value
+     *
+     * @param height height of matrix
+     * @param width  width of matrix
+     * @param value  value to be filled in each entry
+     * @return matrix
+     */
+    public static float[][] matrix(int height, int width, float value) {
+        final float[][] out = new float[height][width];
+
+        for (int i = 0; i < height; ++i) {
+            for (int j = 0; j < width; ++j) {
+                out[i][j] = value;
+            }
+        }
 
         return out;
     }

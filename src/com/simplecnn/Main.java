@@ -1,7 +1,8 @@
 package com.simplecnn;
 
-import com.simplecnn.cnn.Functions;
+import com.simplecnn.cnn.ErrorFunction;
 import com.simplecnn.cnn.Network;
+import com.simplecnn.cnn.Squared;
 
 import java.util.Arrays;
 
@@ -10,7 +11,7 @@ public class Main {
     public static void main(String[] args) {
         try {
             // Convolutional neural network with random weights between -1 and 1 and sigmoid activation function
-            final Network net = Network.randomSigmoid(new int[]{5, 7, 7, 3});
+            final Network net = Network.randomSigmoid(new int[]{5, 7, 7, 3}, new Squared());
 
             // Input data set (each entry is an input vector for the network)
             final float[][] input = {
@@ -21,27 +22,25 @@ public class Main {
 
             // Desired output for the input data set
             // (first entry is the desired output vector for the first input vector in input)
-            final float[][] output = {
+            final float[][] desired = {
                     {1.f, 1.f, 0.f},
                     {0.f, 0.f, 1.f},
                     {1.f, 0.f, 0.f}
             };
 
+            ErrorFunction ef = new Squared();
+
             // Train network for 1000 epochs
             for (int i = 0; i < 10000; ++i) {
                 // Use backpropagation as learning algorithm
-                net.backProp(.1f, input, output);
-
-                // Calculate error for this input-output pair
-
-                float err = 0.f;
-
-                for (int j = 0; j < input.length; ++j) {
-                    err += Functions.squared.apply(output[j], net.forward(input[j]));
-                }
-
-                System.out.println(err / input.length);
+                net.backProp(desired, input, .1f);
+                // Calculate error for batch
+                System.out.println(ef.apply(desired, net.forward(input)));
             }
+
+            /*for (int i = 0; i < 10000; ++i) {
+                System.out.println(net.evolve(desired, input, 0.1f));
+            }*/
 
             for (float[] in : input) {
                 System.out.println(Arrays.toString(net.forward(in)));

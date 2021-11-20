@@ -1,7 +1,5 @@
 package com.simplecnn.cnn;
 
-import java.util.function.Function;
-
 /**
  * The softmax activation function and its derivative
  *
@@ -9,7 +7,8 @@ import java.util.function.Function;
  */
 @SuppressWarnings("unused")
 public class Softmax implements Activation {
-    private final Function<float[], float[]> softmax = x -> {
+    @Override
+    public float[] apply(float[] x) {
         final float[] out = new float[x.length];
         float denominator = 0.f;
 
@@ -24,9 +23,10 @@ public class Softmax implements Activation {
         }
 
         return out;
-    };
+    }
 
-    private final Function<float[], float[]> softmaxD = x -> {
+    @Override
+    public float[] applyD(float[] x) {
         final float[] out = new float[x.length];
         float denominator = 0.f;
 
@@ -41,15 +41,5 @@ public class Softmax implements Activation {
         }
 
         return out;
-    };
-
-    @Override
-    public float[] apply(float[] x) {
-        return softmax.apply(x);
-    }
-
-    @Override
-    public float[] applyD(float[] x) {
-        return softmaxD.apply(x);
     }
 }

@@ -14,22 +14,30 @@ public class Layer implements Cloneable {
     private static final Random rnd = new Random();
 
     // Amount of neurons in this layer
-    private final int neurons;
+    public final int neurons;
     // Amount of neurons from previous layer
-    private final int neuronsPrev;
+    public final int neuronsPrev;
     // Each entry is an array of weights of dendrites to the neurons of the previous layer
     private float[][] weights;
     // Each entry is an array of biases for the neurons
     private float[] biases;
     // Activation function for this layer to make the network non-linear
     private final Activation act;
-    // Cache for last input (needed for gradient descent)
+
+    // Fields for gradient descent learning algorithm
+
+    // Cache for last input
     private float[] in;
-    // Cache for last computed output before applying the activation function (needed for gradient descent)
+    // Cache for last computed output before applying the activation function
     private float[] out;
-    // Iterators for mutation cycling for genetic learning
-    private int mutItI;
-    private int mutItJ;
+
+    // Fields for genetic learning algorithm
+
+    // Cache for last mutated index (between 0 and neurons * neuronsPrev + neurons,
+    // so it maps the layer linearly through the matrix and then the biases
+    private int index;
+    // Cache for value of last mutated index before mutation, to reverse mutation changes
+    private float lastValue;
 
     /**
      * Constructor generates a new layer with biases and its own activation function
@@ -57,30 +65,6 @@ public class Layer implements Cloneable {
         this.biases = Array.copy(biases);
 
         this.act = act;
-
-        this.mutItI = 0;
-        this.mutItJ = 0;
-    }
-
-    /**
-     * Getter for last computed output before applying the activation function.
-     * Needed for gradient descent of the next layer.
-     *
-     * @return last computed output before applying the activation function
-     */
-    public float[] getOut() {
-        return out;
-    }
-
-    /**
-     * Getter for the activation function, since the next layer needs its derivative
-     * for calculating the delta for this layer, if trained with backpropagation,
-     * if different activation functions are used per layer.
-     *
-     * @return activation function and its derivative
-     */
-    public Activation getAct() {
-        return act;
     }
 
     /**
@@ -92,31 +76,8 @@ public class Layer implements Cloneable {
      */
     public float[] forward(float[] input) throws IncompatibleDimensionsException {
         in = input;
-        out = Array.sum(Array.mul(weights, input), biases);
+        out = Array.add(Array.mul(weights, input), biases);
         return act.apply(out);
-    }
-
-    /**
-     * Change the next weight by a random amount for genetic learning
-     *
-     * @param learningRate determines how drastic the changes will be
-     * @return true if the network has been cycled completely
-     */
-    public boolean mutateNext(float learningRate) {
-        weights[mutItI][mutItJ] += (2.f * rnd.nextFloat() - 1.f) * learningRate;
-
-        //Cycle the mutation iterators
-
-        if (++mutItJ == neuronsPrev) {
-            mutItJ = 0;
-
-            if (++mutItI == neurons) {
-                mutItI = 0;
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -199,7 +160,7 @@ public class Layer implements Cloneable {
          * Now we multiply that with the learning rate to adjust the speed of gradient descent, and then
          * we subtract that from the old bias to lower its error.
          */
-        biases = Array.sum(biases, Array.scale(-learningRate, delta));
+        biases = Array.add(biases, Array.scale(-learningRate, delta));
 
         // Update the weights
 
@@ -213,7 +174,50 @@ public class Layer implements Cloneable {
          * want to decrease the error and multiply by the learning rate to adjust the speed of gradient
          * descent.
          */
-        weights = Array.sum(weights, Array.scale(-learningRate, Array.axbT(delta, in)));
+        weights = Array.add(weights, Array.scale(-learningRate, Array.axbT(delta, in)));
+    }
+
+    /**
+     * Change a randomly chosen weight or bias by a random amount for genetic learning
+     *
+     * @param mutationRate determines how drastic the changes will be
+     */
+    public void mutate(float mutationRate) {
+        // Generate random index
+        index = rnd.nextInt(neurons * neuronsPrev + neurons);
+
+        // Determine, whether "index" points to a weight, or bias
+        if (index >= neurons * neuronsPrev) {
+            final int i = index - neurons * neuronsPrev;
+
+            // Cache bias before mutating it
+            lastValue = biases[i];
+            // Change bias by a random amount
+            biases[i] = biases[i]
+                    + (2.f * rnd.nextFloat() - 1.f) * mutationRate;
+        } else {
+            // Cache weight before mutating it
+            lastValue = weights[index / neuronsPrev][index % neuronsPrev];
+            // Change weight by a random amount
+            weights[index / neuronsPrev][index % neuronsPrev] =
+                    weights[index / neuronsPrev][index % neuronsPrev]
+                            + (2.f * rnd.nextFloat() - 1.f) * mutationRate;
+        }
+    }
+
+    /**
+     * Reverse the changes made by the last call of "mutate". Useful if the mutated
+     * network performs worse than before.
+     */
+    public void reverseMutation() {
+        // Determine whether index is pointing to a weight or bias
+        if (index >= neurons * neuronsPrev) {
+            // Reverse changes on bias
+            biases[index - neurons * neuronsPrev] = lastValue;
+        } else {
+            // Reverse changes on weights
+            weights[index / neuronsPrev][index % neuronsPrev] = lastValue;
+        }
     }
 
     @Override
