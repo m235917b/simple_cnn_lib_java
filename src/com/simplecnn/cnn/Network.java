@@ -1,6 +1,9 @@
 package com.simplecnn.cnn;
 
+import java.util.Arrays;
 import java.util.Random;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * A simple Convolutional Neural Network (CNN) with some training algorithms like stochastic
@@ -17,22 +20,22 @@ public class Network implements Cloneable {
     // Array to save the layers
     private Layer[] layers;
     // Error function with derivative for output layer
-    private final ErrorFunction err;
+    private final Cost cost;
 
     /**
      * Constructor that generates a CNN with the given layers.
      *
      * @param layers array of layers for this network
-     * @param err    error function with derivative for output layer
+     * @param cost   cost function with derivative for output layer
      * @throws InvalidInputFormatException if layers has no layer
      */
-    public Network(Layer[] layers, ErrorFunction err) throws InvalidInputFormatException {
+    public Network(Layer[] layers, Cost cost) throws InvalidInputFormatException {
         if (layers.length < 1) {
             throw new InvalidInputFormatException();
         }
 
         this.layers = layers;
-        this.err = err;
+        this.cost = cost;
     }
 
     /**
@@ -43,8 +46,8 @@ public class Network implements Cloneable {
      * @throws IncompatibleDimensionsException if input.length != layers[0].neuronsPrev
      *                                         (size of input layer)
      */
-    public float[] forward(float[] input) throws IncompatibleDimensionsException {
-        float[] out = input;
+    public double[] forward(double[] input) throws IncompatibleDimensionsException {
+        double[] out = input;
 
         for (Layer layer : layers) {
             out = layer.forward(out);
@@ -58,17 +61,18 @@ public class Network implements Cloneable {
      *
      * @param input input batch
      * @return batch of output values
-     * @throws IncompatibleDimensionsException if length of input vectors != layers[0].neurons
-     *                                         (size of input layer)
      */
-    public float[][] forward(float[][] input) throws IncompatibleDimensionsException {
-        float[][] out = new float[input.length][layers[layers.length - 1].neurons];
-
-        for (int i = 0; i < out.length; ++i) {
-            out[i] = forward(input[i]);
-        }
-
-        return out;
+    public double[][] forward(double[][] input) {
+        return Arrays
+                .stream(input)
+                .map(row -> {
+                    try {
+                        return forward(row);
+                    } catch (IncompatibleDimensionsException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .toArray(double[][]::new);
     }
 
     /**
@@ -82,16 +86,16 @@ public class Network implements Cloneable {
      *                                         layers[layers.length - 1].neurons (size of output layer)
      */
     public void backProp(
-            float[][] desired,
-            float[][] input,
-            float learningRate
+            double[][] desired,
+            double[][] input,
+            double learningRate
     ) throws IncompatibleDimensionsException {
         if (input.length != desired.length) {
             throw new IncompatibleDimensionsException();
         }
 
-        float[] result;
-        float[] delta;
+        double[] result;
+        double[] delta;
 
         // Train on the batch
         for (int i = 0; i < input.length; ++i) {
@@ -99,7 +103,7 @@ public class Network implements Cloneable {
             result = forward(input[i]);
 
             // Calculate delta for the last layer
-            delta = err.applyD(desired[i], result);
+            delta = cost.applyD(desired[i], result);
 
             // Iterate backwards through the net
             for (int j = layers.length - 1; j >= 0; --j) {
@@ -126,11 +130,11 @@ public class Network implements Cloneable {
      * @throws IncompatibleDimensionsException if length of input vectors != number of neurons
      *                                         of input layer
      */
-    public float evolve(float[][] desired, float[][] input, float mutationRate)
+    public double evolve(double[][] desired, double[][] input, double mutationRate)
             throws IncompatibleDimensionsException {
         // Get error before change
 
-        float errOld = err.apply(desired, forward(input));
+        double errOld = cost.apply(desired, forward(input));
 
         // Randomly choose a layer to change a weight or bias of it
         final int index = rnd.nextInt(layers.length);
@@ -138,7 +142,7 @@ public class Network implements Cloneable {
 
         // Get error after change
 
-        float errNew = err.apply(desired, forward(input));
+        double errNew = cost.apply(desired, forward(input));
 
         if (errNew > errOld) {
             layers[index].reverseMutation();
@@ -150,17 +154,10 @@ public class Network implements Cloneable {
 
     @Override
     public String toString() {
-        final StringBuilder out = new StringBuilder();
-
-        for (int l = 0; l < layers.length; ++l) {
-            out.append(layers[l]);
-
-            if (l < layers.length - 1) {
-                out.append("\n----------\n");
-            }
-        }
-
-        return out.toString();
+        return Arrays
+                .stream(layers)
+                .map(Layer::toString)
+                .collect(Collectors.joining("\n----------\n"));
     }
 
     @Override
@@ -168,12 +165,9 @@ public class Network implements Cloneable {
         try {
             final Network clone = (Network) super.clone();
 
-            // Create a deep copy of the layer array
-            clone.layers = new Layer[layers.length];
+            // Create deep copy of layers
 
-            for (int i = 0; i < layers.length; ++i) {
-                clone.layers[i] = layers[i].clone();
-            }
+            clone.layers = Arrays.stream(layers).map(Layer::clone).toArray(Layer[]::new);
 
             return clone;
         } catch (CloneNotSupportedException e) {
@@ -187,20 +181,22 @@ public class Network implements Cloneable {
      * Generate CNN with random weights between -1 and 1 and sigmoid activation function
      *
      * @param layout array of sizes of the layers where the first value is the input layer
-     * @param err    error function and derivative for output layer
+     * @param cost   cost function and derivative for output layer
      * @return generated CNN
-     * @throws InvalidInputFormatException     if layout has less than 2 layers (input, output)
-     * @throws IncompatibleDimensionsException if layout has dimension 0
+     * @throws InvalidInputFormatException if layout has less than 2 layers (input, output)
      */
-    public static Network randomSigmoid(int[] layout, ErrorFunction err)
-            throws InvalidInputFormatException, IncompatibleDimensionsException {
-        final Layer[] layers = new Layer[layout.length - 1];
-
-        for (int l = 1; l < layout.length; ++l) {
-            layers[l - 1] = Layer.randomSigmoid(layout[l], layout[l - 1]);
-        }
-
-        return new Network(layers, err);
+    public static Network randomSigmoid(int[] layout, Cost cost) throws InvalidInputFormatException {
+        return new Network(IntStream
+                .range(1, layout.length)
+                .mapToObj(i -> {
+                    try {
+                        return Layer.random(layout[i], layout[i - 1], new Sigmoid());
+                    } catch (InvalidInputFormatException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .toArray(Layer[]::new),
+                cost);
     }
 
     /**
@@ -208,23 +204,21 @@ public class Network implements Cloneable {
      *
      * @param layout array of sizes of the layers where the first value is the input layer
      * @param acts   array of activation functions for each layer
-     * @param err    error function and derivative for output layer
+     * @param cost   cost function and derivative for output layer
      * @return generated CNN
-     * @throws InvalidInputFormatException     if layout has less than 2 layers (input, output)
-     * @throws IncompatibleDimensionsException if layout.length == 0 || layout.length != acts.length
+     * @throws InvalidInputFormatException if layout has less than 2 layers (input, output)
      */
-    public static Network random(int[] layout, Activation[] acts, ErrorFunction err)
-            throws InvalidInputFormatException, IncompatibleDimensionsException {
-        if (layout.length != acts.length) {
-            throw new IncompatibleDimensionsException();
-        }
-
-        final Layer[] layers = new Layer[layout.length - 1];
-
-        for (int l = 1; l < layout.length; ++l) {
-            layers[l - 1] = Layer.random(layout[l], layout[l - 1], acts[l]);
-        }
-
-        return new Network(layers, err);
+    public static Network random(int[] layout, Activation[] acts, Cost cost) throws InvalidInputFormatException {
+        return new Network(IntStream
+                .range(1, layout.length)
+                .mapToObj(i -> {
+                    try {
+                        return Layer.random(layout[i], layout[i - 1], acts[i]);
+                    } catch (InvalidInputFormatException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .toArray(Layer[]::new),
+                cost);
     }
 }

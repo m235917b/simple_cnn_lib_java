@@ -8,38 +8,14 @@ package com.simplecnn.cnn;
 @SuppressWarnings("unused")
 public class Softmax implements Activation {
     @Override
-    public float[] apply(float[] x) {
-        final float[] out = new float[x.length];
-        float denominator = 0.f;
-
-        // Calculate common denominator
-        for (float v : x) {
-            denominator += Math.exp(v);
-        }
-
-        // Calculate the softmax values
-        for (int i = 0; i < x.length; ++i) {
-            out[i] = (float) Math.exp(x[i]) / denominator;
-        }
-
-        return out;
+    public double[] apply(double[] x) {
+        return Array.map(x, e -> Math.exp(e) / Array.sum(Array.exp(x)));
     }
 
     @Override
-    public float[] applyD(float[] x) {
-        final float[] out = new float[x.length];
-        float denominator = 0.f;
-
-        // Calculate common denominator
-        for (float v : x) {
-            denominator += Math.exp(v);
-        }
-
-        // Calculate derivatives component wise
-        for (int i = 0; i < x.length; ++i) {
-            out[i] = (float) (Math.exp(x[i]) * (denominator - Math.exp(x[i])) / Math.pow(denominator, 2.f));
-        }
-
-        return out;
+    public double[] applyD(double[] x) {
+        // (exp(x) % (denominator - exp(x)) / denominator² and "%" is the hadamard product
+        return Array.map(x, e ->
+                (Array.sum(Array.exp(x)) - Math.exp(e)) / Math.pow(Array.sum(Array.exp(x)), 2.));
     }
 }

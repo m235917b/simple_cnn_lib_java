@@ -17,7 +17,7 @@ public interface Activation {
      * @param x argument
      * @return function value
      */
-    float[] apply(float[] x);
+    double[] apply(double[] x);
 
     /**
      * Apply the derivative of the activation function
@@ -25,5 +25,5 @@ public interface Activation {
      * @param x argument
      * @return value of the derivative
      */
-    float[] applyD(float[] x);
+    double[] applyD(double[] x);
 }

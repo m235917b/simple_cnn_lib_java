@@ -1,6 +1,8 @@
 package com.simplecnn.cnn;
 
+import java.util.Arrays;
 import java.util.Random;
+import java.util.stream.IntStream;
 
 /**
  * A single layer of neurons with dendrites to previous layer and individual activation function.
@@ -18,18 +20,18 @@ public class Layer implements Cloneable {
     // Amount of neurons from previous layer
     public final int neuronsPrev;
     // Each entry is an array of weights of dendrites to the neurons of the previous layer
-    private float[][] weights;
+    private double[][] weights;
     // Each entry is an array of biases for the neurons
-    private float[] biases;
+    private double[] biases;
     // Activation function for this layer to make the network non-linear
     private final Activation act;
 
     // Fields for gradient descent learning algorithm
 
     // Cache for last input
-    private float[] in;
+    private double[] in;
     // Cache for last computed output before applying the activation function
-    private float[] out;
+    private double[] out;
 
     // Fields for genetic learning algorithm
 
@@ -37,7 +39,7 @@ public class Layer implements Cloneable {
     // so it maps the layer linearly through the matrix and then the biases
     private int index;
     // Cache for value of last mutated index before mutation, to reverse mutation changes
-    private float lastValue;
+    private double lastValue;
 
     /**
      * Constructor generates a new layer with biases and its own activation function
@@ -47,11 +49,10 @@ public class Layer implements Cloneable {
      *                width equals to the number of neurons in the previous layer)
      * @param biases  vector of biases for this layer (one for each neuron)
      * @param act     activation function for this layer
-     * @throws InvalidInputFormatException     if weights has dimension 0 || weights.length != biases.length
-     * @throws IncompatibleDimensionsException if weights or biases has dimension 0
+     * @throws InvalidInputFormatException if weights has dimension 0 || weights.length != biases.length
      */
-    public Layer(float[][] weights, float[] biases, Activation act)
-            throws InvalidInputFormatException, IncompatibleDimensionsException {
+    public Layer(double[][] weights, double[] biases, Activation act)
+            throws InvalidInputFormatException {
         if (weights.length == 0 || weights.length != biases.length) {
             throw new InvalidInputFormatException();
         }
@@ -74,7 +75,7 @@ public class Layer implements Cloneable {
      * @return array of calculated values after forwarding
      * @throws IncompatibleDimensionsException if input.length != neurons
      */
-    public float[] forward(float[] input) throws IncompatibleDimensionsException {
+    public double[] forward(double[] input) throws IncompatibleDimensionsException {
         in = input;
         out = Array.add(Array.mul(weights, input), biases);
         return act.apply(out);
@@ -90,8 +91,8 @@ public class Layer implements Cloneable {
      * @throws IncompatibleDimensionsException if delta.length != neurons || outPrev.length !=
      *                                         number of neurons in previous layer
      */
-    public float[] getDeltaPrev(
-            float[] delta
+    public double[] getDeltaPrev(
+            double[] delta
     ) throws IncompatibleDimensionsException {
         /*
          * If we define deltaPrev as d(cost)/d(outPrev) (Where "cost" is the cost function) which can be seen as
@@ -128,8 +129,8 @@ public class Layer implements Cloneable {
      * @throws IncompatibleDimensionsException if delta.length != neurons
      */
     public void gradientDescent(
-            float[] delta,
-            float learningRate
+            double[] delta,
+            double learningRate
     ) throws IncompatibleDimensionsException {
         /*
          * Calculate missing part for the gradient (delta),
@@ -182,7 +183,7 @@ public class Layer implements Cloneable {
      *
      * @param mutationRate determines how drastic the changes will be
      */
-    public void mutate(float mutationRate) {
+    public void mutate(double mutationRate) {
         // Generate random index
         index = rnd.nextInt(neurons * neuronsPrev + neurons);
 
@@ -193,15 +194,14 @@ public class Layer implements Cloneable {
             // Cache bias before mutating it
             lastValue = biases[i];
             // Change bias by a random amount
-            biases[i] = biases[i]
-                    + (2.f * rnd.nextFloat() - 1.f) * mutationRate;
+            biases[i] = biases[i] + (2. * rnd.nextDouble() - 1.) * mutationRate;
         } else {
+            final int i = index / neuronsPrev, j = index % neuronsPrev;
+
             // Cache weight before mutating it
-            lastValue = weights[index / neuronsPrev][index % neuronsPrev];
+            lastValue = weights[i][j];
             // Change weight by a random amount
-            weights[index / neuronsPrev][index % neuronsPrev] =
-                    weights[index / neuronsPrev][index % neuronsPrev]
-                            + (2.f * rnd.nextFloat() - 1.f) * mutationRate;
+            weights[i][j] = weights[i][j] + (2.f * rnd.nextDouble() - 1.f) * mutationRate;
         }
     }
 
@@ -222,34 +222,7 @@ public class Layer implements Cloneable {
 
     @Override
     public String toString() {
-        final StringBuilder out = new StringBuilder();
-
-        for (float[] weight : weights) {
-            out.append("[");
-            for (int j = 0; j < neuronsPrev; ++j) {
-                out.append(weight[j]);
-
-                if (j < neuronsPrev - 1) {
-                    out.append(", ");
-                }
-            }
-
-            out.append("]\n");
-        }
-
-        out.append("Biases: [");
-
-        for (int i = 0; i < neurons; ++i) {
-            out.append(biases[i]);
-
-            if (i < neurons - 1) {
-                out.append(", ");
-            }
-        }
-
-        out.append("]");
-
-        return out.toString();
+        return Arrays.deepToString(weights) + "\nBiases: " + Arrays.toString(biases);
     }
 
     @Override
@@ -263,7 +236,7 @@ public class Layer implements Cloneable {
             clone.biases = Array.copy(biases);
 
             return clone;
-        } catch (CloneNotSupportedException | IncompatibleDimensionsException e) {
+        } catch (CloneNotSupportedException e) {
             throw new AssertionError();
         }
     }
@@ -271,61 +244,27 @@ public class Layer implements Cloneable {
     // Factory methods
 
     /**
-     * Create a layer with random weights between -1 and 1 and sigmoid activation function.
-     *
-     * @param neurons  number of neurons in this layer
-     * @param preLayer number of neurons from previous layer
-     * @return randomly generated layer
-     * @throws InvalidInputFormatException     if neurons <= 0 || preLayer <= 0
-     * @throws IncompatibleDimensionsException if neurons <= 0 || preLayer <= 0
-     */
-    public static Layer randomSigmoid(int neurons, int preLayer)
-            throws InvalidInputFormatException, IncompatibleDimensionsException {
-        final float[][] weights = new float[neurons][preLayer];
-        final float[] biases = new float[neurons];
-
-        // Fill layer with random weights between -1 and 1
-        for (int i = 0; i < neurons; ++i) {
-            for (int j = 0; j < preLayer; ++j) {
-                weights[i][j] = rnd.nextFloat() * 2.f - 1.f;
-            }
-        }
-
-        // Fill layer with random biases between -1 and 1
-        for (int i = 0; i < biases.length; ++i) {
-            biases[i] = rnd.nextFloat() * 2.f - 1.f;
-        }
-
-        return new Layer(weights, biases, new Sigmoid());
-    }
-
-    /**
      * Create a layer with random weights between -1 and 1 and given activation function.
      *
-     * @param neurons  number of neurons in this layer
-     * @param preLayer number of neurons from previous layer
-     * @param act      activation function for this layer
+     * @param neurons    number of neurons in this layer
+     * @param neuronsPre number of neurons from previous layer
+     * @param act        activation function for this layer
      * @return randomly generated layer
-     * @throws InvalidInputFormatException     if neurons <= 0 || preLayer <= 0
-     * @throws IncompatibleDimensionsException if neurons <= 0 || preLayer <= 0
+     * @throws InvalidInputFormatException if neurons <= 0 || neuronsPre <= 0
      */
-    public static Layer random(int neurons, int preLayer, Activation act)
-            throws InvalidInputFormatException, IncompatibleDimensionsException {
-        final float[][] weights = new float[neurons][preLayer];
-        final float[] biases = new float[neurons];
-
-        // Fill layer with random weights between -1 and 1
-        for (int i = 0; i < neurons; ++i) {
-            for (int j = 0; j < preLayer; ++j) {
-                weights[i][j] = rnd.nextFloat() * 2.f - 1.f;
-            }
-        }
-
-        // Fill layer with random biases between -1 and 1
-        for (int i = 0; i < biases.length; ++i) {
-            biases[i] = rnd.nextFloat() * 2.f - 1.f;
-        }
-
-        return new Layer(weights, biases, act);
+    public static Layer random(int neurons, int neuronsPre, Activation act)
+            throws InvalidInputFormatException {
+        return new Layer(IntStream
+                .range(0, neurons)
+                .mapToObj(i -> IntStream
+                        .range(0, neuronsPre)
+                        .mapToDouble(j -> rnd.nextDouble() * 2. - 1.)
+                        .toArray())
+                .toArray(double[][]::new),
+                IntStream
+                        .range(0, neurons)
+                        .mapToDouble(i -> rnd.nextDouble() * 2. - 1.)
+                        .toArray(),
+                act);
     }
 }

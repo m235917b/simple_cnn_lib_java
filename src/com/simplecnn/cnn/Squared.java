@@ -1,22 +1,20 @@
 package com.simplecnn.cnn;
 
 /**
- * Squared error function and its derivative
+ * Squared error cost function and its derivative
  *
  * @author Marvin Bergmann
  */
-public class Squared implements ErrorFunction {
+public class Squared implements Cost {
     @Override
-    public float apply(float[][] desired, float[][] input) throws IncompatibleDimensionsException {
-        if (desired.length == 0) {
-            return 0.f;
-        }
-
-        return Array.sum(Array.sqr(Array.sub(desired, input))) / (desired.length * desired[0].length);
+    public double apply(double[][] desired, double[][] input) throws IncompatibleDimensionsException {
+        return desired.length == 0
+                ? 0.
+                : Array.sum(Array.sqr(Array.sub(desired, input))) / (desired.length * desired[0].length);
     }
 
     @Override
-    public float[] applyD(float[] desired, float[] output) throws IncompatibleDimensionsException {
+    public double[] applyD(double[] desired, double[] output) throws IncompatibleDimensionsException {
         return Array.sub(output, desired);
     }
 }
