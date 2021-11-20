@@ -1,10 +1,14 @@
-package com.simplecnn.cnn;
+package com.simplecnn.functional;
 
 import java.util.Iterator;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
+/**
+ * @param <R>
+ * @author Marvin Bergmann
+ */
+@SuppressWarnings("unused")
 public abstract class TailCall<R> {
 
     public abstract Result<R> eval();

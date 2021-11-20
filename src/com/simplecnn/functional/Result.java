@@ -1,9 +1,18 @@
-package com.simplecnn.cnn;
+package com.simplecnn.functional;
 
+import java.util.function.Function;
+
+/**
+ * @param <V>
+ * @author Marvin Bergmann
+ */
+@SuppressWarnings("unused")
 public abstract class Result<V> {
     public abstract boolean isEmpty();
 
     public abstract V getOrElse(V defaultValue);
+
+    public abstract <T> Result<T> map(Function<V, T> f);
 
     public static class Success<V> extends Result<V> {
         private final V value;
@@ -21,6 +30,11 @@ public abstract class Result<V> {
         public V getOrElse(V defaultValue) {
             return value;
         }
+
+        @Override
+        public <T> Result<T> map(Function<V, T> f) {
+            return new Success<>(f.apply(value));
+        }
     }
 
     public static class Empty<V> extends Result<V> {
@@ -36,6 +50,11 @@ public abstract class Result<V> {
         @Override
         public V getOrElse(V defaultValue) {
             return defaultValue;
+        }
+
+        @Override
+        public <T> Result<T> map(Function<V, T> f) {
+            return new Empty<>();
         }
     }
 

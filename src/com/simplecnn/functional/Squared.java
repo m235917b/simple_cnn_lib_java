@@ -1,13 +1,17 @@
-package com.simplecnn.cnn;
+package com.simplecnn.functional;
+
+import com.simplecnn.cnn.Array;
 
 /**
  * Squared error cost function and its derivative
  *
  * @author Marvin Bergmann
  */
+@SuppressWarnings("unused")
 public class Squared implements Cost {
     @Override
-    public double apply(double[][] desired, double[][] input) throws IncompatibleDimensionsException {
+    public double apply(double[][] desired, double[][] input)
+            throws IncompatibleDimensionsException {
         return desired.length == 0
                 ? 0.
                 : Array.sum(Array.sqr(Array.sub(desired, input))) / (desired.length * desired[0].length);

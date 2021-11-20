@@ -1,4 +1,6 @@
-package com.simplecnn.cnn;
+package com.simplecnn.functional;
+
+import com.simplecnn.cnn.Array;
 
 /**
  * Cross-entropy cost function and its derivative
@@ -8,7 +10,8 @@ package com.simplecnn.cnn;
 @SuppressWarnings("unused")
 public class CrossEnt implements Cost {
     @Override
-    public double apply(double[][] desired, double[][] output) throws IncompatibleDimensionsException {
+    public double apply(double[][] desired, double[][] output)
+            throws IncompatibleDimensionsException {
         // Calculate mean of entries from  (desired - 1) % log(1 - output) - desired % log(output)
         // ("%" is the hadamard product)
         return Array.sum(

@@ -1,4 +1,4 @@
-package com.simplecnn.cnn;
+package com.simplecnn.functional;
 
 /**
  * Exception for incompatible dimensions of vectors / matrices for operations on them

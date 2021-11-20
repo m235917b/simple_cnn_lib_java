@@ -1,4 +1,4 @@
-package com.simplecnn.cnn;
+package com.simplecnn.functional;
 
 /**
  * Exception for invalid inputs. For example, a network needs at least an output and one

@@ -1,4 +1,4 @@
-package com.simplecnn.cnn;
+package com.simplecnn.functional;
 
 /**
  * Cost/loss function interface for the output layer.
@@ -10,6 +10,7 @@ package com.simplecnn.cnn;
  *
  * @author Marvin Bergmann
  */
+@SuppressWarnings("unused")
 public interface Cost {
     /**
      * Get the cost of the network for the given input batch
@@ -19,7 +20,8 @@ public interface Cost {
      * @return cost
      * @throws IncompatibleDimensionsException if length of desired vectors != length of output vectors
      */
-    double apply(double[][] desired, double[][] output) throws IncompatibleDimensionsException;
+    double apply(double[][] desired, double[][] output)
+            throws IncompatibleDimensionsException;
 
     /**
      * Apply the vectorized derivative of the loss function
@@ -27,7 +29,6 @@ public interface Cost {
      * @param desired desired output
      * @param output  computed output of the net
      * @return value of the derivative
-     * @throws IncompatibleDimensionsException if desired.length != output.length
      */
     double[] applyD(double[] desired, double[] output);
 }

@@ -1,5 +1,7 @@
 package com.simplecnn.cnn;
 
+import com.simplecnn.functional.IncompatibleDimensionsException;
+
 import java.util.Arrays;
 import java.util.function.DoubleUnaryOperator;
 import java.util.stream.IntStream;
@@ -272,6 +274,16 @@ public class Array {
     }
 
     /**
+     * Vectorized natural logarithm
+     *
+     * @param x input vector
+     * @return log(x) (component-wise as a vector)
+     */
+    public static double[] log(double[] x) {
+        return map(x, Math::log);
+    }
+
+    /**
      * Component-wise natural logarithm of a matrix
      *
      * @param x matrix
@@ -302,6 +314,16 @@ public class Array {
     }
 
     /**
+     * Vectorized square function
+     *
+     * @param x input vector
+     * @return x² (component-wise as a vector)
+     */
+    public static double[] sqr(double[] x) {
+        return map(x, e -> Math.pow(e, 2.));
+    }
+
+    /**
      * Component-wise square of a matrix
      *
      * @param x input matrix
@@ -329,14 +351,5 @@ public class Array {
      */
     public static double[][] copy(double[][] in) {
         return Arrays.stream(in).map(Array::copy).toArray(double[][]::new);
-    }
-
-    @SuppressWarnings("rawtypes")
-    public static <A, B> Pair[] zip(A[] a, B[] b) throws IncompatibleDimensionsException {
-        if (a.length != b.length) {
-            throw new IncompatibleDimensionsException();
-        }
-
-        return IntStream.range(0, a.length).mapToObj(i -> Pair.of(a[i], b[i])).toArray(Pair[]::new);
     }
 }

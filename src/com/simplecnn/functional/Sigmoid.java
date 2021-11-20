@@ -1,10 +1,13 @@
-package com.simplecnn.cnn;
+package com.simplecnn.functional;
+
+import com.simplecnn.cnn.Array;
 
 /**
  * The sigmoid activation function and its derivative
  *
  * @author Marvin Bergmann
  */
+@SuppressWarnings("unused")
 public class Sigmoid implements Activation {
     @Override
     public double[] apply(double[] x) {

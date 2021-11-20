@@ -1,4 +1,6 @@
-package com.simplecnn.cnn;
+package com.simplecnn.functional;
+
+import com.simplecnn.cnn.Array;
 
 /**
  * The softmax activation function and its derivative

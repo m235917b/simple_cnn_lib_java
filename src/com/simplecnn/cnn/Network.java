@@ -1,9 +1,8 @@
 package com.simplecnn.cnn;
 
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
+import com.simplecnn.functional.*;
+
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -47,17 +46,13 @@ public class Network implements Cloneable {
      * @return vector of output values
      */
     public double[] forward(double[] input) {
-        double[] out = Array.copy(input);
-
-        for (Layer layer : layers) {
-            try {
-                out = layer.forward(out);
-            } catch (IncompatibleDimensionsException e) {
-                e.printStackTrace();
-            }
-        }
-
-        //return ;
+        return TailCall
+                .recIt(
+                        input,
+                        Arrays.asList(layers).iterator(),
+                        (acc, layer) -> layer.forward(acc)
+                ).eval()
+                .getOrElse(new double[0]);
     }
 
     /**
@@ -73,13 +68,6 @@ public class Network implements Cloneable {
                 .toArray(double[][]::new);
     }
 
-    private TailCall<Void> test(final int ctrLayer, final double[] delta, final double gdFactor) {
-        return ctrLayer >= 0
-                ? TailCall.call(() ->
-                test(ctrLayer - 1, layers[ctrLayer].gradientDescent(delta, gdFactor), gdFactor))
-                : TailCall.ret(Result.empty());
-    }
-
     /**
      * Train network via backpropagation and gradient descent on mini batch
      *
@@ -87,20 +75,45 @@ public class Network implements Cloneable {
      * @param input        input batch
      * @param learningRate rate of change for the weights
      */
-    public TailCall<Void> backProp(
-            LinkedList<double[]> desired,
-            LinkedList<double[]> input,
+    public void backProp(
+            double[][] desired,
+            double[][] input,
             double learningRate
     ) {
-        test(
-                layers.length - 1,
-                cost.applyD(desired.pop(), forward(input.pop())),
-                learningRate / (input.size() + 1.)
-        ).eval();
-
-        return desired.isEmpty()
-                ? TailCall.ret(Result.empty())
-                : TailCall.call(() -> backProp(desired, input, learningRate));
+        /*
+         * Run through each input-output pair in the batch by popping them from the list and feeding them
+         * to the derivative of the cost function to get the delta for the last layer (which is the first
+         * to be processed).
+         * Then iterate backwards through the layers and calculate the deltas for each.
+         * If we reach the input layer, the iterator will start at the output layer again cyclically to
+         * process the next batch, until the batch is empty.
+         *
+         * "RecursiveIterator.of" first defines how the iterator will behave/change after each iteration,
+         * then it defines the task for the iterator as a Function of a "Result", taking the accumulator
+         * and iterator as input.
+         *
+         * We return a result, to be able to define a termination condition. Its value is the return
+         * value of the tail-recursive function defined by this expression. The accumulator is used to
+         * pass arguments/return values from one iteration to the next function call. Lastly, the function
+         * needs the iterator, to be able to change its behaviour according to the progress of the recursion.
+         * This could be passed down via the accumulator as argument if we used a special data structure,
+         * like a Pair for it, but this would make this already complex expression even more complex.
+         *
+         * Finally, the "eval" method starts the recursion by giving an initial value for the accumulator
+         * (in this case the first delta, which is the delta of the cost function needed by the output
+         * layer), and an initial value for the iterator.
+         */
+        RecursiveIterator.<double[], Pair<Integer, Integer>>of(it -> it.getSnd() <= 0
+                                ? Pair.of(it.getFst() + 1, layers.length - 1)
+                                : Pair.of(it.getFst(), it.getSnd() - 1),
+                        (acc, it) -> it.getSnd() <= 0
+                                ? it.getFst() >= desired.length
+                                ? Result.empty()
+                                : Result.of(cost.applyD(desired[it.getFst()], forward(input[it.getFst()])))
+                                : Result.of(layers[it.getSnd()]
+                                .gradientDescent(acc, learningRate / desired.length)))
+                .eval(cost.applyD(desired[0], forward(input[0])),
+                        Pair.of(1, layers.length - 1));
     }
 
     /**
@@ -119,7 +132,6 @@ public class Network implements Cloneable {
     public double evolve(double[][] desired, double[][] input, double mutationRate)
             throws IncompatibleDimensionsException {
         // Get error before change
-
         double errOld = cost.apply(desired, forward(input));
 
         // Randomly choose a layer to change a weight or bias of it
@@ -127,10 +139,10 @@ public class Network implements Cloneable {
         layers[index].mutate(mutationRate);
 
         // Get error after change
-
         double errNew = cost.apply(desired, forward(input));
 
         if (errNew > errOld) {
+            // Recover old state, if net performs worse now
             layers[index].reverseMutation();
             return errOld;
         }

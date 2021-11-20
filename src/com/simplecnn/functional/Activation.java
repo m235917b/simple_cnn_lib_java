@@ -1,4 +1,4 @@
-package com.simplecnn.cnn;
+package com.simplecnn.functional;
 
 /**
  * Activation function interface for neural net layers.
@@ -10,6 +10,7 @@ package com.simplecnn.cnn;
  *
  * @author Marvin Bergmann
  */
+@SuppressWarnings("unused")
 public interface Activation {
     /**
      * Apply the activation function

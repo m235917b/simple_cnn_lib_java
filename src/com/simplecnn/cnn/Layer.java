@@ -1,5 +1,9 @@
 package com.simplecnn.cnn;
 
+import com.simplecnn.functional.Activation;
+import com.simplecnn.functional.IncompatibleDimensionsException;
+import com.simplecnn.functional.InvalidInputFormatException;
+
 import java.util.Arrays;
 import java.util.Random;
 import java.util.stream.IntStream;
@@ -73,12 +77,15 @@ public class Layer implements Cloneable {
      *
      * @param input input values from previous layer or input layer
      * @return array of calculated values after forwarding
-     * @throws IncompatibleDimensionsException if input.length != neurons
      */
-    public double[] forward(double[] input) throws IncompatibleDimensionsException {
-        in = input;
-        out = Array.add(Array.mul(weights, input), biases);
-        return act.apply(out);
+    public double[] forward(double[] input) {
+        try {
+            in = input;
+            out = Array.add(Array.mul(weights, input), biases);
+            return act.apply(out);
+        } catch (IncompatibleDimensionsException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
