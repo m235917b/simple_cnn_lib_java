@@ -330,4 +330,13 @@ public class Array {
     public static double[][] copy(double[][] in) {
         return Arrays.stream(in).map(Array::copy).toArray(double[][]::new);
     }
+
+    @SuppressWarnings("rawtypes")
+    public static <A, B> Pair[] zip(A[] a, B[] b) throws IncompatibleDimensionsException {
+        if (a.length != b.length) {
+            throw new IncompatibleDimensionsException();
+        }
+
+        return IntStream.range(0, a.length).mapToObj(i -> Pair.of(a[i], b[i])).toArray(Pair[]::new);
+    }
 }

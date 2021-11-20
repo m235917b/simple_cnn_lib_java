@@ -1,6 +1,8 @@
 package com.simplecnn.cnn;
 
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -43,17 +45,19 @@ public class Network implements Cloneable {
      *
      * @param input vector of input values
      * @return vector of output values
-     * @throws IncompatibleDimensionsException if input.length != layers[0].neuronsPrev
-     *                                         (size of input layer)
      */
-    public double[] forward(double[] input) throws IncompatibleDimensionsException {
-        double[] out = input;
+    public double[] forward(double[] input) {
+        double[] out = Array.copy(input);
 
         for (Layer layer : layers) {
-            out = layer.forward(out);
+            try {
+                out = layer.forward(out);
+            } catch (IncompatibleDimensionsException e) {
+                e.printStackTrace();
+            }
         }
 
-        return out;
+        //return ;
     }
 
     /**
@@ -65,14 +69,15 @@ public class Network implements Cloneable {
     public double[][] forward(double[][] input) {
         return Arrays
                 .stream(input)
-                .map(row -> {
-                    try {
-                        return forward(row);
-                    } catch (IncompatibleDimensionsException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
+                .map(this::forward)
                 .toArray(double[][]::new);
+    }
+
+    private TailCall<Void> test(final int ctrLayer, final double[] delta, final double gdFactor) {
+        return ctrLayer >= 0
+                ? TailCall.call(() ->
+                test(ctrLayer - 1, layers[ctrLayer].gradientDescent(delta, gdFactor), gdFactor))
+                : TailCall.ret(Result.empty());
     }
 
     /**
@@ -81,40 +86,21 @@ public class Network implements Cloneable {
      * @param desired      desired output values for the batch
      * @param input        input batch
      * @param learningRate rate of change for the weights
-     * @throws IncompatibleDimensionsException if input.length != layers[0].neuronsPrev (size of input layer)
-     *                                         || desired.length !=
-     *                                         layers[layers.length - 1].neurons (size of output layer)
      */
-    public void backProp(
-            double[][] desired,
-            double[][] input,
+    public TailCall<Void> backProp(
+            LinkedList<double[]> desired,
+            LinkedList<double[]> input,
             double learningRate
-    ) throws IncompatibleDimensionsException {
-        if (input.length != desired.length) {
-            throw new IncompatibleDimensionsException();
-        }
+    ) {
+        test(
+                layers.length - 1,
+                cost.applyD(desired.pop(), forward(input.pop())),
+                learningRate / (input.size() + 1.)
+        ).eval();
 
-        double[] result;
-        double[] delta;
-
-        // Train on the batch
-        for (int i = 0; i < input.length; ++i) {
-            // Forward the input to generate cached values
-            result = forward(input[i]);
-
-            // Calculate delta for the last layer
-            delta = cost.applyD(desired[i], result);
-
-            // Iterate backwards through the net
-            for (int j = layers.length - 1; j >= 0; --j) {
-                // Update layer
-                layers[j].gradientDescent(delta, learningRate / input.length);
-                if (j != 0) {
-                    // Get next delta
-                    delta = layers[j].getDeltaPrev(delta);
-                }
-            }
-        }
+        return desired.isEmpty()
+                ? TailCall.ret(Result.empty())
+                : TailCall.call(() -> backProp(desired, input, learningRate));
     }
 
     /**

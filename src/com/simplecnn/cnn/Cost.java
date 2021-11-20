@@ -29,5 +29,5 @@ public interface Cost {
      * @return value of the derivative
      * @throws IncompatibleDimensionsException if desired.length != output.length
      */
-    double[] applyD(double[] desired, double[] output) throws IncompatibleDimensionsException;
+    double[] applyD(double[] desired, double[] output);
 }

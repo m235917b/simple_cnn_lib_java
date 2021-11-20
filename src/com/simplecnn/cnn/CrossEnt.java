@@ -26,7 +26,11 @@ public class CrossEnt implements Cost {
     }
 
     @Override
-    public double[] applyD(double[] desired, double[] output) throws IncompatibleDimensionsException {
-        return Array.div(Array.map(desired, e -> 1. - 2. * e), output);
+    public double[] applyD(double[] desired, double[] output) {
+        try {
+            return Array.div(Array.map(desired, e -> 1. - 2. * e), output);
+        } catch (IncompatibleDimensionsException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

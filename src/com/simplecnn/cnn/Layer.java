@@ -88,12 +88,8 @@ public class Layer implements Cloneable {
      *
      * @param delta delta for this layer
      * @return delta for the previous layer
-     * @throws IncompatibleDimensionsException if delta.length != neurons || outPrev.length !=
-     *                                         number of neurons in previous layer
      */
-    public double[] getDeltaPrev(
-            double[] delta
-    ) throws IncompatibleDimensionsException {
+    private double[] getDeltaPrev(double[] delta) {
         /*
          * If we define deltaPrev as d(cost)/d(outPrev) (Where "cost" is the cost function) which can be seen as
          * the error of the previous layer, we can write
@@ -114,7 +110,11 @@ public class Layer implements Cloneable {
          * This method only returns the part requiring information from this layer, to keep the data
          * encapsulated.
          */
-        return Array.mul(Array.trans(weights), delta);
+        try {
+            return Array.mul(Array.trans(weights), delta);
+        } catch (IncompatibleDimensionsException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -126,56 +126,59 @@ public class Layer implements Cloneable {
      *                     on a batch, this should also be divided by the size of the batch,
      *                     so the mean of the errors for every input-output pair can be
      *                     calculated and the network will improve for every input.
-     * @throws IncompatibleDimensionsException if delta.length != neurons
+     * @return delta for the previous layer
      */
-    public void gradientDescent(
-            double[] delta,
-            double learningRate
-    ) throws IncompatibleDimensionsException {
-        /*
-         * Calculate missing part for the gradient (delta),
-         * which couldn't be calculated in the next layer.
-         * (The complete Formula would be delta(i) = w(i+1) * delta(i+1) * activationDi(out),
-         * where "w(i+1)" and "delta(i+1)" are the weight matrix and delta of the next layer
-         * and "delta(i)", "activationDi" are the activation function and derivative of the
-         * activation function of this layer and "out" is the last output from this layer
-         * before applying the activation function).
-         *
-         * But "delta" is only w(i+1) * delta(i+1), the part that needs information from the
-         * next layer. The part needing information from this layer is calculated here, so
-         * we keep the data encapsulated.
-         */
-        delta = Array.had(act.applyD(out), delta);
+    public double[] gradientDescent(double[] delta, double learningRate) {
+        try {
+            /*
+             * Calculate missing part for the gradient (delta),
+             * which couldn't be calculated in the next layer.
+             * (The complete Formula would be delta(i) = w(i+1) * delta(i+1) * activationDi(out),
+             * where "w(i+1)" and "delta(i+1)" are the weight matrix and delta of the next layer
+             * and "delta(i)", "activationDi" are the activation function and derivative of the
+             * activation function of this layer and "out" is the last output from this layer
+             * before applying the activation function).
+             *
+             * But "delta" is only w(i+1) * delta(i+1), the part that needs information from the
+             * next layer. The part needing information from this layer is calculated here, so
+             * we keep the data encapsulated.
+             */
+            final double[] deltaFinal = Array.had(act.applyD(out), delta);
 
-        // Update the biases
+            // Update the biases
 
-        /*
-         * Since d(cost)/d(biases) = d(cost)/d(out) * d(out)/d(biases) according to the chain rule,
-         * if "out" is the output of this layer before applying the activation function and
-         * d(cost)/d(out) = delta per definition, and out = weights * in + biases (where "in" is the
-         * input for this layer, aka the output with activation function from the previous layer), it
-         * follows, that d(out)/d(biases) = 1 and thus d(cost)/d(biases) = 1 * delta.
-         *
-         * Thus, the rate of change for bias j is delta(j).
-         *
-         * Now we multiply that with the learning rate to adjust the speed of gradient descent, and then
-         * we subtract that from the old bias to lower its error.
-         */
-        biases = Array.add(biases, Array.scale(-learningRate, delta));
+            /*
+             * Since d(cost)/d(biases) = d(cost)/d(out) * d(out)/d(biases) according to the chain rule,
+             * if "out" is the output of this layer before applying the activation function and
+             * d(cost)/d(out) = delta per definition, and out = weights * in + biases (where "in" is the
+             * input for this layer, aka the output with activation function from the previous layer), it
+             * follows, that d(out)/d(biases) = 1 and thus d(cost)/d(biases) = 1 * delta.
+             *
+             * Thus, the rate of change for bias j is delta(j).
+             *
+             * Now we multiply that with the learning rate to adjust the speed of gradient descent, and then
+             * we subtract that from the old bias to lower its error.
+             */
+            biases = Array.add(biases, Array.scale(-learningRate, deltaFinal));
 
-        // Update the weights
+            // Update the weights
 
-        /*
-         * Since out = weights * in + biases (where "out" is the output of this layer before applying
-         * the activation function and "in" is the input for this layer, aka the output of the previous
-         * layer after applying the activation function) => d(out)/d(weights) = in, we can calculate
-         * d(cost)/d(weights) = d(cost)/d(out) * d(out)/d(weights) = delta * inT (where inT is the
-         * transpose of "in") according to the chain rule. Now we have a gradient matrix G for the weights
-         * and can update the weights with weights = weights - learningRate * G. We subtract, since we
-         * want to decrease the error and multiply by the learning rate to adjust the speed of gradient
-         * descent.
-         */
-        weights = Array.add(weights, Array.scale(-learningRate, Array.axbT(delta, in)));
+            /*
+             * Since out = weights * in + biases (where "out" is the output of this layer before applying
+             * the activation function and "in" is the input for this layer, aka the output of the previous
+             * layer after applying the activation function) => d(out)/d(weights) = in, we can calculate
+             * d(cost)/d(weights) = d(cost)/d(out) * d(out)/d(weights) = delta * inT (where inT is the
+             * transpose of "in") according to the chain rule. Now we have a gradient matrix G for the weights
+             * and can update the weights with weights = weights - learningRate * G. We subtract, since we
+             * want to decrease the error and multiply by the learning rate to adjust the speed of gradient
+             * descent.
+             */
+            weights = Array.add(weights, Array.scale(-learningRate, Array.axbT(deltaFinal, in)));
+
+            return getDeltaPrev(delta);
+        } catch (IncompatibleDimensionsException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
