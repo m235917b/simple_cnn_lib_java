@@ -2,7 +2,8 @@ package com.simplecnn.cnn;
 
 import com.simplecnn.functional.*;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -28,9 +29,9 @@ public class Network implements Cloneable {
      *
      * @param layers array of layers for this network
      * @param cost   cost function with derivative for output layer
-     * @throws InvalidInputFormatException if layers has no layer
+     * @throws InvalidInputFormatException if layers is empty
      */
-    public Network(Layer[] layers, Cost cost) throws InvalidInputFormatException {
+    private Network(Layer[] layers, Cost cost) throws InvalidInputFormatException {
         if (layers.length < 1) {
             throw new InvalidInputFormatException();
         }
@@ -40,19 +41,19 @@ public class Network implements Cloneable {
     }
 
     /**
-     * Feed the input vector to the network and calculate output values
+     * Feed the input vector to the network and calculate output value
      *
-     * @param input vector of input values
-     * @return vector of output values
+     * @param input input vector
+     * @return output vector
      */
     public double[] forward(double[] input) {
-        return TailCall
-                .recIt(
-                        input,
-                        Arrays.asList(layers).iterator(),
-                        (acc, layer) -> layer.forward(acc)
-                ).eval()
-                .getOrElse(new double[0]);
+        return RecursiveIterator.<double[], Integer>of(
+                it -> it + 1,
+                ThrowingFunction.biFunc((acc, it) -> it >= layers.length
+                        ? Result.empty()
+                        : Result.of(layers[it].forward(acc))
+                )
+        ).eval(input, 0);
     }
 
     /**
@@ -69,21 +70,31 @@ public class Network implements Cloneable {
     }
 
     /**
+     * Calculate the cost for this net and the given input-desired pair and make it
+     * publicly available.
+     *
+     * @param desired array of output vectors with ideal values
+     * @param input   array with input vectors corresponding to the output vectors in "desired"
+     * @return cost for this batch
+     * @throws IncompatibleDimensionsException if desired.length != neurons
+     */
+    public double getCost(double[][] desired, double[][] input) throws IncompatibleDimensionsException {
+        return cost.apply(desired, forward(input));
+    }
+
+    /**
      * Train network via backpropagation and gradient descent on mini batch
      *
      * @param desired      desired output values for the batch
-     * @param input        input batch
+     * @param input        input batch (indices must match with the corresponding vectors from desired)
      * @param learningRate rate of change for the weights
+     * @throws IncompatibleDimensionsException if desired.length != number of output neurons
      */
-    public void backProp(
-            double[][] desired,
-            double[][] input,
-            double learningRate
-    ) {
+    public void backProp(double[][] desired, double[][] input, double learningRate)
+            throws IncompatibleDimensionsException {
         /*
-         * Run through each input-output pair in the batch by popping them from the list and feeding them
-         * to the derivative of the cost function to get the delta for the last layer (which is the first
-         * to be processed).
+         * Run through each input-output pair in the batch and feed them to the derivative of the cost
+         * function to get the delta for the last layer (which is the first to be processed).
          * Then iterate backwards through the layers and calculate the deltas for each.
          * If we reach the input layer, the iterator will start at the output layer again cyclically to
          * process the next batch, until the batch is empty.
@@ -103,17 +114,19 @@ public class Network implements Cloneable {
          * (in this case the first delta, which is the delta of the cost function needed by the output
          * layer), and an initial value for the iterator.
          */
-        RecursiveIterator.<double[], Pair<Integer, Integer>>of(it -> it.getSnd() <= 0
-                                ? Pair.of(it.getFst() + 1, layers.length - 1)
-                                : Pair.of(it.getFst(), it.getSnd() - 1),
-                        (acc, it) -> it.getSnd() <= 0
+        RecursiveIterator.<double[], Pair<Integer, Integer>>of(
+                it -> it.getSnd() <= 0
+                        ? Pair.of(it.getFst() + 1, layers.length - 1)
+                        : Pair.of(it.getFst(), it.getSnd() - 1),
+                ThrowingFunction.biFunc((acc, it) -> it.getSnd() <= 0
                                 ? it.getFst() >= desired.length
                                 ? Result.empty()
                                 : Result.of(cost.applyD(desired[it.getFst()], forward(input[it.getFst()])))
                                 : Result.of(layers[it.getSnd()]
-                                .gradientDescent(acc, learningRate / desired.length)))
-                .eval(cost.applyD(desired[0], forward(input[0])),
-                        Pair.of(1, layers.length - 1));
+                                .gradientDescent(acc, learningRate / desired.length)
+                        )
+                )
+        ).eval(cost.applyD(desired[0], forward(input[0])), Pair.of(1, layers.length - 1));
     }
 
     /**
@@ -125,21 +138,22 @@ public class Network implements Cloneable {
      *                     (order must match those of "input")
      * @param input        input batch
      * @param mutationRate how drastic the changes will be
-     * @return new error of the network
+     * @return new error of the network which is also the opposite delta direction we must
+     * change our weight to decrease the error
      * @throws IncompatibleDimensionsException if length of input vectors != number of neurons
      *                                         of input layer
      */
     public double evolve(double[][] desired, double[][] input, double mutationRate)
             throws IncompatibleDimensionsException {
         // Get error before change
-        double errOld = cost.apply(desired, forward(input));
+        final double errOld = cost.apply(desired, forward(input));
 
         // Randomly choose a layer to change a weight or bias of it
         final int index = rnd.nextInt(layers.length);
         layers[index].mutate(mutationRate);
 
         // Get error after change
-        double errNew = cost.apply(desired, forward(input));
+        final double errNew = cost.apply(desired, forward(input));
 
         if (errNew > errOld) {
             // Recover old state, if net performs worse now
@@ -186,15 +200,11 @@ public class Network implements Cloneable {
     public static Network randomSigmoid(int[] layout, Cost cost) throws InvalidInputFormatException {
         return new Network(IntStream
                 .range(1, layout.length)
-                .mapToObj(i -> {
-                    try {
-                        return Layer.random(layout[i], layout[i - 1], new Sigmoid());
-                    } catch (InvalidInputFormatException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-                .toArray(Layer[]::new),
-                cost);
+                .mapToObj(ThrowingFunction
+                        .intFunc((i, j) -> Layer.random(
+                                layout[i], layout[i - 1], new Sigmoid()
+                        ))
+                ).toArray(Layer[]::new), cost);
     }
 
     /**
@@ -209,14 +219,10 @@ public class Network implements Cloneable {
     public static Network random(int[] layout, Activation[] acts, Cost cost) throws InvalidInputFormatException {
         return new Network(IntStream
                 .range(1, layout.length)
-                .mapToObj(i -> {
-                    try {
-                        return Layer.random(layout[i], layout[i - 1], acts[i]);
-                    } catch (InvalidInputFormatException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-                .toArray(Layer[]::new),
-                cost);
+                .mapToObj(ThrowingFunction
+                        .intFunc((i, j) -> Layer.random(
+                                layout[i], layout[i - 1], acts[i])
+                        )
+                ).toArray(Layer[]::new), cost);
     }
 }

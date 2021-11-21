@@ -18,6 +18,7 @@ public class Softmax implements Activation {
     public double[] applyD(double[] x) {
         // (exp(x) % (denominator - exp(x)) / denominator² and "%" is the hadamard product
         return Array.map(x, e ->
-                (Array.sum(Array.exp(x)) - Math.exp(e)) / Math.pow(Array.sum(Array.exp(x)), 2.));
+                (Array.sum(Array.exp(x)) - Math.exp(e)) / Math.pow(Array.sum(Array.exp(x)), 2.)
+        );
     }
 }

@@ -1,7 +1,6 @@
 package com.simplecnn;
 
 import com.simplecnn.cnn.*;
-import com.simplecnn.functional.Cost;
 import com.simplecnn.functional.Squared;
 
 import java.util.Arrays;
@@ -27,21 +26,19 @@ public class Main {
                     new double[]{1., 0., 0.}
             };
 
-            final Cost ef = new Squared();
-
             // Train network for 10000 epochs
             for (int i = 0; i < 10000; ++i) {
                 // Use backpropagation as learning algorithm
                 net.backProp(desired, input, .1);
 
                 // Calculate error for batch
-                System.out.println(ef.apply(desired, net.forward(input)));
+                System.out.println(net.getCost(desired, input));
             }
 
-            /* for (int i = 0; i < 10000; ++i) {
+            /*for (int i = 0; i < 10000; ++i) {
                 // Use genetic learning algorithm
                 System.out.println(net.evolve(desired, input, .1));
-            } */
+            }*/
 
             System.out.println(Arrays.deepToString(net.forward(input)));
         } catch (Exception e) {

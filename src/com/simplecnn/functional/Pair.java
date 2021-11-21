@@ -1,8 +1,10 @@
 package com.simplecnn.functional;
 
 /**
- * @param <F>
- * @param <S>
+ * A simple generic immutable pair
+ *
+ * @param <F> type of first element
+ * @param <S> type of second element
  * @author Marvin Bergmann
  */
 @SuppressWarnings("unused")
@@ -10,7 +12,7 @@ public class Pair<F, S> {
     private final F fst;
     private final S snd;
 
-    public Pair(F fst, S snd) {
+    private Pair(F fst, S snd) {
         this.fst = fst;
         this.snd = snd;
     }

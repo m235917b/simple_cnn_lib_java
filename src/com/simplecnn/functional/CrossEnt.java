@@ -10,8 +10,7 @@ import com.simplecnn.cnn.Array;
 @SuppressWarnings("unused")
 public class CrossEnt implements Cost {
     @Override
-    public double apply(double[][] desired, double[][] output)
-            throws IncompatibleDimensionsException {
+    public double apply(double[][] desired, double[][] output) throws IncompatibleDimensionsException {
         // Calculate mean of entries from  (desired - 1) % log(1 - output) - desired % log(output)
         // ("%" is the hadamard product)
         return Array.sum(
@@ -29,11 +28,7 @@ public class CrossEnt implements Cost {
     }
 
     @Override
-    public double[] applyD(double[] desired, double[] output) {
-        try {
-            return Array.div(Array.map(desired, e -> 1. - 2. * e), output);
-        } catch (IncompatibleDimensionsException e) {
-            throw new RuntimeException(e);
-        }
+    public double[] applyD(double[] desired, double[] output) throws IncompatibleDimensionsException {
+        return Array.div(Array.map(desired, e -> 1. - 2. * e), output);
     }
 }

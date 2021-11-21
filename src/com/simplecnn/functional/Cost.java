@@ -20,8 +20,7 @@ public interface Cost {
      * @return cost
      * @throws IncompatibleDimensionsException if length of desired vectors != length of output vectors
      */
-    double apply(double[][] desired, double[][] output)
-            throws IncompatibleDimensionsException;
+    double apply(double[][] desired, double[][] output) throws IncompatibleDimensionsException;
 
     /**
      * Apply the vectorized derivative of the loss function
@@ -30,5 +29,5 @@ public interface Cost {
      * @param output  computed output of the net
      * @return value of the derivative
      */
-    double[] applyD(double[] desired, double[] output);
+    double[] applyD(double[] desired, double[] output) throws IncompatibleDimensionsException;
 }

@@ -18,11 +18,7 @@ public class Squared implements Cost {
     }
 
     @Override
-    public double[] applyD(double[] desired, double[] output) {
-        try {
-            return Array.sub(output, desired);
-        } catch (IncompatibleDimensionsException e) {
-            throw new RuntimeException(e);
-        }
+    public double[] applyD(double[] desired, double[] output) throws IncompatibleDimensionsException {
+        return Array.sub(output, desired);
     }
 }
